@@ -1,0 +1,12 @@
+[Unit]
+Description=NOVA GAMER OS - sinal de inicializacao grafica para teste QEMU
+After=lightdm.service
+ConditionPathExists=/dev/ttyS0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nova-qemu-ready
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # NOVA GAMER OS - compila a ISO com live-build (Debian 13 "trixie", amd64).
-# Rodar como root em Debian/Ubuntu Linux com internet e >= 20 GB livres:
-#   sudo ./scripts/build-iso.sh
+# Rodar como root em Debian/Ubuntu Linux com internet e >= 25 GB livres.
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
@@ -15,13 +14,15 @@ command -v lb >/dev/null 2>&1 || {
   exit 1
 }
 
+export DEBIAN_FRONTEND=noninteractive
 mkdir -p build
 exec > >(tee -a build/BUILD-LOG.txt) 2>&1
+BUILD_STARTED="$(date +%s)"
 echo "== NOVA GAMER OS build iniciado em $(date -u +%FT%TZ) =="
 echo "== live-build: $(dpkg-query -W -f='${Version}' live-build 2>/dev/null || echo desconhecida) =="
 
-# Limpa apenas artefatos de build anteriores (sem --purge, para não tocar em config/)
-lb clean --all || true
+# Não ignore falhas de limpeza: um cache/chroot antigo pode contaminar a ISO nova.
+lb clean --all
 
 lb config \
   --distribution trixie \
@@ -29,22 +30,26 @@ lb config \
   --binary-images iso-hybrid \
   --debian-installer live \
   --debian-installer-gui true \
+  --uefi-secure-boot disable \
   --archive-areas "main contrib non-free non-free-firmware" \
   --iso-volume "NOVA_GAMER_OS" \
   --iso-application "NOVA GAMER OS" \
   --image-name "NOVA-GAMER-OS" \
-  --bootappend-live "boot=live components username=nova hostname=nova-gamer-os locales=pt_BR.UTF-8 keyboard-layouts=br"
+  --bootappend-live "boot=live components username=nova hostname=nova-gamer-os locales=pt_BR.UTF-8 keyboard-layouts=br console=tty0 console=ttyS0,115200n8 systemd.show_status=1"
 
 lb build
 
-ISO="$(find . -maxdepth 1 -type f -name '*.iso' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-if [[ -z "$ISO" ]]; then
-  echo "Nenhuma ISO encontrada após a construção." >&2
+# Só aceite uma ISO efetivamente criada nesta execução.
+ISO="$(find . -maxdepth 1 -type f -name '*.iso' -newermt "@$((BUILD_STARTED - 1))" -printf '%T@ %p\n' \
+  | sort -nr | head -n1 | cut -d' ' -f2-)"
+if [[ -z "$ISO" || ! -s "$ISO" ]]; then
+  echo "Nenhuma ISO nova foi criada após lb build." >&2
   exit 2
 fi
+
 cp -- "$ISO" build/NOVA-GAMER-OS-amd64.iso
 (cd build && sha256sum NOVA-GAMER-OS-amd64.iso > SHA256SUMS.txt)
 SIZE="$(du -h build/NOVA-GAMER-OS-amd64.iso | cut -f1)"
 echo "ISO criada: build/NOVA-GAMER-OS-amd64.iso ($SIZE)"
 echo "SHA-256: build/SHA256SUMS.txt"
-echo "A meta de 1 GB não é garantida."
+echo "IMPORTANTE: só instale depois de VALIDATE-LOG e QEMU-LOG terminarem sem falhas."

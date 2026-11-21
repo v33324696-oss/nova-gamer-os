@@ -1,0 +1,27 @@
+NOVA GAMER OS — LEIA ANTES DE GERAR A NOVA ISO
+
+Este ZIP contém o CÓDIGO-FONTE corrigido. Ele NÃO é a ISO instalável.
+
+O que mudou:
+- O teste antigo aprovava só porque o menu GRUB aparecia. Agora BIOS e UEFI precisam iniciar o Linux Live e o LightDM.
+- Uma falha no teste de boot deixa o GitHub Actions vermelho; não é mais ignorada.
+- O validador confere o cabeçalho real do kernel Linux x86 antes de permitir seguir.
+- O sistema é configurado para iniciar no modo gráfico e habilitar o LightDM.
+- Secure Boot é explicitamente desativado nesta imagem; desative-o também na BIOS/UEFI do notebook.
+- O script do Windows/WSL agora aplica as permissões dos scripts e executa validação e teste QEMU.
+
+COMO USAR:
+1. Faça backup ou mantenha uma cópia do repositório atual.
+2. Extraia este ZIP.
+3. Envie/substitua os arquivos da pasta nova na raiz do seu repositório GitHub, preservando a pasta .github.
+4. Faça commit/push na branch main.
+5. Abra Actions > Build NOVA GAMER OS ISO > Run workflow.
+6. Só use o artefato NOVA-GAMER-OS da execução nova se o workflow terminar verde, inclusive nas etapas Validate e QEMU BIOS/UEFI.
+7. Baixe a ISO e o SHA256SUMS da MESMA execução; confira o hash antes de gravar o pendrive.
+8. Teste primeiro Live e depois faça uma instalação completa em VM com disco virtual vazio. Só depois considere instalar no notebook real.
+
+IMPORTANTE:
+- Não use mais a ISO antiga da execução #3 para instalar.
+- Se qualquer etapa ficar vermelha, NÃO instale. Baixe os logs VALIDATE-LOG.txt e QEMU-LOG.txt e investigue a falha.
+- Não há como prometer ausência de erros no hardware real sem testar o modelo exato do notebook e concluir uma instalação em VM. O novo pipeline reduz o risco e impede a aprovação falsa que existia antes.
+- Ao instalar, o Debian Installer pode formatar o disco selecionado. Faça backup e confirme o disco com muito cuidado.

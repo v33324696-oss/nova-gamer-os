@@ -1,0 +1,10 @@
+#!/bin/sh
+# Sinaliza que o Live chegou ao LightDM durante o teste automatizado em QEMU.
+# Em hardware real, sem ttyS0, termina silenciosamente e não altera o boot.
+set -eu
+
+[ -c /dev/ttyS0 ] || exit 0
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet lightdm.service; then
+    printf '\nNOVA_GAMER_OS_GRAPHICAL_READY\n' > /dev/ttyS0
+fi
+exit 0

@@ -36,12 +36,12 @@ if not defined LINUXPATH (
 echo Instalando ferramentas e construindo a ISO.
 echo O projeto sera copiado para o disco Linux do WSL (ext4), pois o live-build
 echo nao funciona de forma confiavel em pastas do Windows (/mnt/c).
-echo Sudo pode solicitar a senha do usuario Debian. E necessario internet e ~20 GB livres.
+echo Sudo pode solicitar a senha do usuario Debian. E necessario internet e ~25 GB livres.
 echo.
-wsl.exe -d Debian -- bash -lc "set -e; sudo apt-get update && sudo apt-get install -y live-build debootstrap xorriso squashfs-tools rsync && rm -rf \"$HOME/nova-build\" && mkdir -p \"$HOME/nova-build\" && rsync -a --exclude build --exclude chroot --exclude binary --exclude cache '%LINUXPATH%/' \"$HOME/nova-build/\" && cd \"$HOME/nova-build\" && sudo ./scripts/build-iso.sh && mkdir -p '%LINUXPATH%/build' && cp -f build/NOVA-GAMER-OS-amd64.iso build/SHA256SUMS.txt build/BUILD-LOG.txt '%LINUXPATH%/build/'"
+wsl.exe -d Debian -- bash -lc "set -euo pipefail; sudo apt-get update && sudo apt-get install -y live-build debootstrap xorriso squashfs-tools rsync qemu-system-x86 ovmf && rm -rf \"$HOME/nova-build\" && mkdir -p \"$HOME/nova-build\" && rsync -a --exclude build --exclude chroot --exclude binary --exclude cache '%LINUXPATH%/' \"$HOME/nova-build/\" && cd \"$HOME/nova-build\" && chmod +x scripts/*.sh config/hooks/live/*.hook.chroot && sudo ./scripts/build-iso.sh && sudo ./scripts/validate-iso.sh build/NOVA-GAMER-OS-amd64.iso | sudo tee build/VALIDATE-LOG.txt && sudo env BOOT_WAIT=240 ./scripts/qemu-boot-test.sh build/NOVA-GAMER-OS-amd64.iso | sudo tee build/QEMU-LOG.txt && mkdir -p '%LINUXPATH%/build' && cp -f build/NOVA-GAMER-OS-amd64.iso build/SHA256SUMS.txt build/BUILD-LOG.txt build/VALIDATE-LOG.txt build/QEMU-LOG.txt '%LINUXPATH%/build/'"
 if errorlevel 1 (
   echo.
-  echo A compilacao falhou. Confira a mensagem acima, internet e espaco livre.
+  echo A compilacao, validacao ou teste de boot falhou. Nao use essa ISO para instalar.
   echo Observacao: o Debian do WSL precisa ser recente o bastante para criar "trixie".
   echo Se falhar na etapa do debootstrap, use o workflow do GitHub Actions (veja README.md).
   pause

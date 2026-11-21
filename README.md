@@ -50,16 +50,19 @@ Para abrir manualmente: execute `nova-ui` em um terminal ou escolha **NOVA Contr
 O BAT automatiza a construção depois que WSL/Debian está instalado e configurado. A primeira instalação pode exigir administrador e reinicialização.
 
 ## Construir a ISO manualmente
-Use uma máquina Debian amd64 limpa, com internet e pelo menos 20 GB livres.
+Use uma máquina Debian amd64 limpa, com internet e pelo menos 25 GB livres. Para passar pelos mesmos testes do GitHub Actions, instale também QEMU e OVMF.
 
 ```bash
 sudo apt update
-sudo apt install -y live-build
+sudo apt install -y live-build debootstrap xorriso squashfs-tools qemu-system-x86 ovmf
 cd NOVA-GAMER-OS
+sudo chmod +x scripts/*.sh config/hooks/live/*.hook.chroot
 sudo ./scripts/build-iso.sh
+sudo ./scripts/validate-iso.sh build/NOVA-GAMER-OS-amd64.iso | sudo tee build/VALIDATE-LOG.txt
+sudo env BOOT_WAIT=240 ./scripts/qemu-boot-test.sh build/NOVA-GAMER-OS-amd64.iso | sudo tee build/QEMU-LOG.txt
 ```
 
-A ISO, se a construção terminar corretamente, ficará em `build/NOVA-GAMER-OS-amd64.iso`; o hash em `build/SHA256SUMS.txt` e o log em `build/BUILD-LOG.txt`. Depois, valide com `./scripts/validate-iso.sh build/NOVA-GAMER-OS-amd64.iso`.
+A ISO ficará em `build/NOVA-GAMER-OS-amd64.iso`; o hash em `build/SHA256SUMS.txt` e os logs de compilação, validação e boot na pasta `build/`. Só use a ISO para testar a instalação quando a validação e os dois testes de boot terminarem sem falhas.
 
 Teste primeiro em uma VM. Para hardware físico, grave a ISO em um USB usando Rufus ou balenaEtcher. Faça backup antes de instalar qualquer sistema.
 
@@ -71,17 +74,17 @@ Teste primeiro em uma VM. Para hardware físico, grave a ISO em um USB usando Ru
 
 ## Instalar no computador
 
-A compilação desta versão habilita `--debian-installer live` e inclui `debian-installer-launcher`. A mídia deverá oferecer o instalador Debian no menu de boot e um iniciador dentro da sessão live. O instalador copia o sistema live para o disco selecionado.
+A compilação habilita `--debian-installer live` e inclui `debian-installer-launcher`. A mídia deve oferecer o instalador Debian no menu de boot e um iniciador na sessão Live. A presença dos arquivos não prova, por si só, que a instalação terminou corretamente: primeiro conclua uma instalação em VM com disco virtual vazio e reinicie essa VM sem a ISO.
 
-**Atenção:** instalar pode apagar os dados do disco escolhido. Faça backup antes, confirme cuidadosamente o disco de destino e não prossiga se não tiver certeza. Teste primeiro em uma máquina virtual. A ISO ainda precisa ser compilada e testada; a presença das opções no projeto não prova que a instalação foi validada em hardware real.
+**Atenção:** instalar pode apagar os dados do disco escolhido. Faça backup antes, confirme cuidadosamente o disco de destino e não prossiga se não tiver certeza. Secure Boot deve ficar desativado nesta versão. Veja `docs/README-INSTALACAO.md` para a sequência segura.
 
 
 ## Construir a ISO pelo GitHub Actions (recomendado)
 
 1. Crie um repositório no GitHub e envie o conteúdo da pasta `NOVA-GAMER-OS/` (a pasta `.github/` precisa ficar na raiz do repositório).
 2. Abra a aba **Actions** > **Build NOVA GAMER OS ISO** > **Run workflow**.
-3. O job compila dentro de um container `debian:trixie`, valida a estrutura da ISO (`scripts/validate-iso.sh`), tenta iniciar em QEMU (BIOS e UEFI) e publica o artefato **NOVA-GAMER-OS** (ISO, `SHA256SUMS.txt`, logs e capturas de tela do boot).
-4. Baixe o artefato na página da execução. O workflow ainda não foi executado; veja `README-TESTES.md`.
+3. O job compila dentro de um container `debian:trixie`, valida a estrutura e o cabeçalho do kernel (`scripts/validate-iso.sh`) e exige que o sistema Live chegue ao LightDM em QEMU nos modos BIOS e UEFI (`scripts/qemu-boot-test.sh`). Um teste de boot reprovado deixa o workflow vermelho; artefatos/logs são preservados para diagnóstico.
+4. Baixe a ISO e `SHA256SUMS.txt` da mesma execução aprovada. Leia `docs/README-TESTES.md` e `docs/README-INSTALACAO.md`. O teste automatizado não substitui uma instalação completa em VM nem o teste no hardware específico.
 
 ## Mudanças nesta revisão
 Veja `docs/CHANGELOG-CORRECOES.md`.

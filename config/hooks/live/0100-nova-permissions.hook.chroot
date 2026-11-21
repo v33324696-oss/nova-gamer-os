@@ -1,9 +1,17 @@
 #!/bin/sh
-# NOVA GAMER OS - garante permissões de execução dos arquivos personalizados.
+# NOVA GAMER OS - permissões dos arquivos personalizados e sinalizador de teste.
 set -eu
 chmod 0755 /usr/local/bin/nova-ui /usr/local/bin/nova-game-mode /usr/local/bin/nova-status
+chmod 0755 /usr/local/sbin/nova-qemu-ready
 chmod 0644 /usr/share/nova-ui/index.html
+chmod 0644 /etc/systemd/system/nova-qemu-ready.service
 chmod 0755 /etc/skel/Desktop/NOVA-Control-Center.desktop
 chmod 0755 /etc/skel/.local/share/applications/nova-game-mode.desktop \
            /etc/skel/.local/share/applications/nova-status.desktop
 chmod 0644 /usr/share/applications/nova-control-center.desktop
+mkdir -p /etc/systemd/system/graphical.target.wants
+ln -sfn ../nova-qemu-ready.service \
+  /etc/systemd/system/graphical.target.wants/nova-qemu-ready.service
+# Esta imagem é uma distribuição desktop: inicie no alvo gráfico e habilite o LightDM.
+systemctl --root=/ set-default graphical.target
+systemctl --root=/ enable lightdm.service
