@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=NOVA Status
+Comment=Mostra informações básicas do hardware
+Exec=/usr/local/bin/nova-status
+Icon=utilities-system-monitor
+Terminal=true
+Categories=System;
