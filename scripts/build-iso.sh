@@ -19,8 +19,9 @@ export DEBIAN_FRONTEND=noninteractive
 # Arquivos editados/baixados no Windows podem ter CRLF, o que quebra hooks, scripts e units systemd.
 find scripts config -type f -exec sed -i 's/\r$//' {} +
 chmod +x scripts/*.sh config/hooks/live/*.hook.chroot 2>/dev/null || true
-for tool in file python3 xorriso unsquashfs; do
-  command -v "$tool" >/dev/null 2>&1 || { echo "Ferramenta ausente: $tool (instale: sudo apt install file python3 xorriso squashfs-tools)"; exit 1; }
+# Só o que este script e o repair-iso-boot-paths.sh realmente usam (python3/unsquashfs são do validate-iso.sh).
+for tool in file xorriso; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "Ferramenta ausente: $tool (instale: sudo apt install file xorriso)"; exit 1; }
 done
 
 mkdir -p build
