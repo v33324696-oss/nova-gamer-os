@@ -23,6 +23,7 @@ jobs:
           df -h /
 
       - name: Compilar ISO dentro de container Debian 13 (privilegiado)
+        timeout-minutes: 120
         run: |
           set -euo pipefail
           mkdir -p build
@@ -37,6 +38,7 @@ jobs:
           '
 
       - name: Validar estrutura da ISO
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -44,15 +46,18 @@ jobs:
           chmod +x scripts/*.sh
           sudo ./scripts/validate-iso.sh build/NOVA-GAMER-OS-amd64.iso | tee build/VALIDATE-LOG.txt
 
-      - name: Teste de boot em QEMU (BIOS e UEFI)
+      - name: Teste de boot em QEMU (BIOS e UEFI) com diagnóstico visual
+        timeout-minutes: 20
         run: |
           set -euo pipefail
+          sudo apt-get update
           sudo apt-get install -y qemu-system-x86 ovmf socat python3
           sudo chmod a+rw /dev/kvm || true
           ./scripts/qemu-boot-test.sh build/NOVA-GAMER-OS-amd64.iso | tee build/QEMU-LOG.txt
 
-      - name: Publicar artefatos
+      - name: Publicar ISO e todos os diagnósticos
         if: always()
+        timeout-minutes: 30
         uses: actions/upload-artifact@v4
         with:
           name: NOVA-GAMER-OS
@@ -64,3 +69,18 @@ jobs:
             build/VALIDATE-LOG.txt
             build/QEMU-LOG.txt
             build/qemu/*.ppm
+            build/qemu/*.log
+
+      - name: Resumo automático do resultado
+        if: always()
+        run: |
+          {
+            echo "## NOVA GAMER OS - resultado da compilação"
+            echo ""
+            echo "- ISO: $([ -s build/NOVA-GAMER-OS-amd64.iso ] && echo criada || echo ausente)"
+            echo "- Validação estrutural: $([ -s build/VALIDATE-LOG.txt ] && grep -q 'validação estrutural concluída' build/VALIDATE-LOG.txt && echo aprovada || echo não aprovada)"
+            echo "- Teste de boot: $([ -s build/QEMU-LOG.txt ] && grep -q '\[OK\]' build/QEMU-LOG.txt && ! grep -q '\[FALHA\]' build/QEMU-LOG.txt && echo aprovado || echo reprovado ou incompleto)"
+            echo ""
+            echo "### Diagnóstico do QEMU"
+            if [ -s build/QEMU-LOG.txt ]; then tail -n 50 build/QEMU-LOG.txt; else echo "Log QEMU não foi criado."; fi
+          } >> "$GITHUB_STEP_SUMMARY"

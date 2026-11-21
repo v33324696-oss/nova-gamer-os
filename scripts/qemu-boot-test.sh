@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Teste real de boot em QEMU (BIOS e UEFI).
-# Só aprova quando o Linux inicia o LightDM e emite o marcador pelo serial.
-# Requer: qemu-system-x86, ovmf. Uso: scripts/qemu-boot-test.sh arquivo.iso
+# Teste de boot em QEMU (BIOS e UEFI), com captura de tela e encerramento limitado.
 set -euo pipefail
 
 ISO="${1:?uso: $0 arquivo.iso}"
@@ -25,19 +23,25 @@ fi
 run_vm() {
     local name="$1"; shift
     local serial="$OUT/$name-serial.log"
+    local debug="$OUT/$name-qemu-debug.log"
+    local monitor="$OUT/$name-monitor.sock"
+    local screenshot="$OUT/$name-screen.ppm"
     local pid=""
     local elapsed=0
     local -a extra=("$@")
 
-    rm -f "$serial"
+    rm -f "$serial" "$debug" "$monitor" "$screenshot"
     echo "== Teste $name: aguardando kernel, sistema Live e LightDM (limite ${WAIT}s) =="
 
     qemu-system-x86_64 \
       -machine q35 -m 3072 -smp 2 \
       "${ACCEL_ARGS[@]}" \
+      -vga std \
       -cdrom "$ISO" -boot order=d \
-      -display none -monitor none \
+      -display none \
+      -monitor "unix:$monitor,server=on,wait=off" \
       -serial "file:$serial" \
+      -d guest_errors -D "$debug" \
       -no-reboot \
       "${extra[@]}" &
     pid=$!
@@ -53,22 +57,39 @@ run_vm() {
         elapsed=$((elapsed + 2))
     done
 
+    # Salva a tela do firmware/GRUB/kernel para diagnosticar falhas sem saída serial.
+    if [[ -S "$monitor" ]] && command -v socat >/dev/null 2>&1; then
+        printf 'screendump %s\n' "$screenshot" | socat - "UNIX-CONNECT:$monitor" >/dev/null 2>&1 || true
+    fi
+
+    # Nunca deixa o teste preso esperando indefinidamente pelo QEMU.
     kill -TERM "$pid" 2>/dev/null || true
+    sleep 2
+    kill -KILL "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
 
-    # Reconfere após encerrar o QEMU para não perder o marcador emitido no limite do timeout.
     if [[ -f "$serial" ]] && grep -Fq "$MARKER" "$serial"; then
         echo "[OK] $name: Linux iniciou o sistema Live e o LightDM confirmou inicialização."
         return 0
     fi
 
     echo "[FALHA] $name: o LightDM não confirmou inicialização após ${elapsed}s."
+    if [[ -s "$screenshot" ]]; then
+        echo "[INFO] Captura da tela salva em $screenshot"
+    else
+        echo "[AVISO] QEMU não gerou captura de tela."
+    fi
     if [[ -s "$serial" ]]; then
         echo "---- Últimas linhas do console serial ($name) ----"
         tail -n 80 "$serial" || true
         echo "--------------------------------------------------"
     else
         echo "[FALHA] QEMU não produziu saída serial."
+    fi
+    if [[ -s "$debug" ]]; then
+        echo "---- Últimas linhas do diagnóstico QEMU ($name) ----"
+        tail -n 80 "$debug" || true
+        echo "----------------------------------------------------"
     fi
     return 1
 }
