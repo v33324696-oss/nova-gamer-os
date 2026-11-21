@@ -53,6 +53,15 @@ run_vm() {
         if ! kill -0 "$pid" 2>/dev/null; then
             break
         fi
+        # O menu do bootloader (SYSLINUX/GRUB) espera uma tecla: aperta Enter a cada 6s nos
+        # primeiros 150s para escolher a entrada padrao "Live system".
+        if (( elapsed < 150 && elapsed % 6 == 0 )) && [[ -S "$monitor" ]] && command -v socat >/dev/null 2>&1; then
+            printf 'sendkey ret\n' | timeout 3 socat - "UNIX-CONNECT:$monitor" >/dev/null 2>&1 || true
+        fi
+        # Captura intermediaria para diagnostico (menu/kernel em andamento).
+        if (( elapsed == 60 )) && [[ -S "$monitor" ]] && command -v socat >/dev/null 2>&1; then
+            printf 'screendump %s\n' "$OUT/$name-screen-60s.ppm" | timeout 5 socat - "UNIX-CONNECT:$monitor" >/dev/null 2>&1 || true
+        fi
         sleep 2
         elapsed=$((elapsed + 2))
     done
