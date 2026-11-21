@@ -1,15 +1,12 @@
-# Arquivos GERADOS pelo live-build (não ignore config/ inteiro: ele contém o projeto!)
-/config/binary
-/config/bootstrap
-/config/chroot
-/config/common
-/config/source
-/.build/
-/cache/
-/chroot/
-/binary/
-/local/
-/build/
-/live-image-*
-*.iso
-*.log
+# Evita que o Git/Windows converta scripts Linux para CRLF (quebra bash, hooks e systemd).
+* text=auto
+*.sh text eol=lf
+*.chroot text eol=lf
+*.service text eol=lf
+*.desktop text eol=lf
+*.yml text eol=lf
+*.list text eol=lf
+config/includes.chroot/usr/local/bin/* text eol=lf
+config/includes.chroot/usr/local/sbin/* text eol=lf
+# Arquivos do Windows precisam de CRLF.
+*.bat text eol=crlf
