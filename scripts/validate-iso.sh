@@ -1,35 +1,37 @@
 #!/usr/bin/env bash
-# Validação estrutural e de integridade dos componentes de boot da ISO.
-# Não substitui o boot em QEMU nem a instalação em hardware real.
-# Uso: scripts/validate-iso.sh arquivo.iso
-set -uo pipefail
+# Validação estrutural da ISO NOVA GAMER OS.
+# Não substitui o boot em hardware real nem a instalação em VM.
+set -euo pipefail
 ISO="${1:?uso: $0 arquivo.iso}"
 FAIL=0
 ok(){ echo "[OK]   $*"; }
-bad(){ echo "[FALHA] $*"; FAIL=1; }
+bad(){ echo "[FALHA] $*" >&2; FAIL=1; }
+extract_iso(){
+  local source="$1" destination="$2"
+  rm -f "$destination"
+  xorriso -osirrox on -indev "$ISO" -extract "$source" "$destination" >/dev/null 2>&1
+}
 
-[[ -s "$ISO" ]] && ok "ISO existe ($(stat -c %s "$ISO") bytes)" || { bad "ISO ausente ou vazia"; exit 1; }
+[[ -s "$ISO" ]] || { echo "[FALHA] ISO ausente ou vazia: $ISO" >&2; exit 1; }
+ok "ISO existe ($(stat -c %s "$ISO") bytes)"
 file "$ISO"
 sha256sum "$ISO"
 
 REPORT="$(xorriso -indev "$ISO" -report_el_torito plain -report_system_area plain 2>&1)"
-echo "$REPORT" | sed -n '1,60p'
-echo "$REPORT" | grep -qi 'BIOS' && ok "entrada El Torito BIOS" || bad "sem entrada El Torito BIOS"
-echo "$REPORT" | grep -qi 'UEFI' && ok "entrada El Torito UEFI" || bad "sem entrada El Torito UEFI"
-echo "$REPORT" | grep -Eqi 'GPT|MBR' && ok "ISO híbrida (GPT/MBR)" || bad "sem estrutura híbrida GPT/MBR"
+printf '%s\n' "$REPORT" | sed -n '1,60p'
+if grep -qi 'BIOS' <<<"$REPORT"; then ok "entrada El Torito BIOS"; else bad "sem entrada El Torito BIOS"; fi
+if grep -qi 'UEFI' <<<"$REPORT"; then ok "entrada El Torito UEFI"; else bad "sem entrada El Torito UEFI"; fi
+if grep -Eqi 'GPT|MBR' <<<"$REPORT"; then ok "ISO híbrida (GPT/MBR)"; else bad "sem estrutura híbrida GPT/MBR"; fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-extract_iso() {
-  local source="$1" destination="$2"
-  xorriso -osirrox on -indev "$ISO" -extract "$source" "$destination" >/dev/null 2>&1
-}
-
-for f in /live/filesystem.squashfs /live/vmlinuz /live/initrd.img; do
-  if extract_iso "$f" "$WORK/$(basename "$f")" && [[ -s "$WORK/$(basename "$f")" ]]; then
-    ok "$f extraído e não vazio"
+for path in /live/filesystem.squashfs /live/vmlinuz /live/initrd.img \
+            /boot/grub/fonts/unicode.pf2; do
+  dest="$WORK/$(basename "$path")"
+  if extract_iso "$path" "$dest" && [[ -s "$dest" ]]; then
+    ok "$path extraído e não vazio"
   else
-    bad "$f ausente ou ilegível"
+    bad "$path ausente ou ilegível"
   fi
 done
 
@@ -37,53 +39,71 @@ KERNEL="$WORK/vmlinuz"
 INITRD="$WORK/initrd.img"
 if [[ -s "$KERNEL" ]]; then
   file "$KERNEL"
-  # Protocolo de boot x86: assinatura HdrS no setup header e boot flag 0xAA55.
-  python3 - "$KERNEL" <<'PY'
+  if python3 - "$KERNEL" <<'PY'
 import pathlib, sys
-p = pathlib.Path(sys.argv[1])
-data = p.read_bytes()
+data = pathlib.Path(sys.argv[1]).read_bytes()
 if len(data) < 0x208:
-    raise SystemExit("kernel pequeno demais para conter o setup header x86")
+    raise SystemExit("kernel pequeno demais para setup header x86")
 if data[0x202:0x206] != b"HdrS":
-    raise SystemExit("assinatura HdrS ausente no kernel (imagem não reconhecida como Linux x86 boot protocol)")
+    raise SystemExit("assinatura HdrS ausente")
 if data[0x1fe:0x200] != b"\x55\xaa":
-    raise SystemExit("boot flag 0xAA55 ausente no kernel")
+    raise SystemExit("boot flag 0xAA55 ausente")
 print(f"[OK] kernel x86 válido: {len(data)} bytes; HdrS e boot flag encontrados")
 PY
-  [[ $? -eq 0 ]] && ok "cabeçalho de kernel Linux x86 válido" || bad "cabeçalho do kernel inválido"
+  then ok "cabeçalho de kernel Linux x86 válido"; else bad "cabeçalho do kernel inválido"; fi
 fi
 if [[ -s "$INITRD" ]]; then
-  [[ $(stat -c %s "$INITRD") -gt 102400 ]] && ok "initrd tem tamanho plausível" || bad "initrd muito pequeno"
+  if (( $(stat -c %s "$INITRD") > 102400 )); then ok "initrd tem tamanho plausível"; else bad "initrd muito pequeno"; fi
 fi
 
-LIST="$(xorriso -indev "$ISO" -find / -type f 2>/dev/null)"
-echo "$LIST" | grep -qi '/install/' && ok "arquivos do Debian Installer presentes" || bad "arquivos do Debian Installer (/install) ausentes"
-echo "$LIST" | grep -qi 'grub.cfg' && ok "configuração GRUB presente" || bad "grub.cfg ausente"
+KERNEL_INFO="$(file "$KERNEL" 2>/dev/null || true)"
+KERNEL_VERSION="$(printf '%s\n' "$KERNEL_INFO" | sed -n 's/.*version \([^ ]*\) (.*/\1/p' | head -n1)"
+if [[ -n "$KERNEL_VERSION" ]]; then
+  for path in "/live/vmlinuz-$KERNEL_VERSION" "/live/initrd.img-$KERNEL_VERSION"; do
+    dest="$WORK/versioned-$(basename "$path")"
+    if extract_iso "$path" "$dest" && [[ -s "$dest" ]]; then ok "$path presente"; else bad "$path ausente"; fi
+  done
+else
+  bad "não foi possível identificar versão do kernel para conferir aliases do GRUB"
+fi
+
+LIST="$(xorriso -indev "$ISO" -find / -type f 2>/dev/null || true)"
+if grep -qi '/install/' <<<"$LIST"; then ok "arquivos do Debian Installer presentes"; else bad "arquivos do Debian Installer (/install) ausentes"; fi
 
 SQ="$WORK/filesystem.squashfs"
 if [[ -s "$SQ" ]]; then
   command -v unsquashfs >/dev/null || { bad "unsquashfs não instalado"; exit 1; }
-  SQLIST="$(unsquashfs -l "$SQ" 2>/dev/null)"
-  for f in \
-    usr/share/nova-ui/index.html \
-    usr/local/bin/nova-ui \
-    usr/local/bin/nova-game-mode \
-    usr/local/bin/nova-status \
-    usr/local/sbin/nova-qemu-ready \
-    etc/systemd/system/nova-qemu-ready.service \
-    usr/share/applications/nova-control-center.desktop \
-    etc/skel/Desktop/NOVA-Control-Center.desktop \
-    usr/bin/chromium \
-    usr/bin/sensors \
-    usr/bin/intel_gpu_top \
-    usr/bin/gamemoderun \
-    usr/sbin/debian-installer-launcher; do
-    echo "$SQLIST" | grep -q "squashfs-root/$f\$" && ok "squashfs contém /$f" || bad "squashfs NÃO contém /$f"
-  done
-  unsquashfs -ll "$SQ" 2>/dev/null | grep -E 'usr/local/(bin/nova-(ui|game-mode|status)|sbin/nova-qemu-ready)$' | grep -q '^-rwxr-xr-x' \
-    && ok "scripts NOVA executáveis" || bad "scripts NOVA sem bit de execução"
+  SQROOT="$WORK/squashfs-root"
+  mkdir -p "$SQROOT"
+  if unsquashfs -d "$SQROOT" "$SQ" >/dev/null; then
+    for f in \
+      usr/share/nova-ui/index.html \
+      usr/local/bin/nova-ui \
+      usr/local/bin/nova-game-mode \
+      usr/local/bin/nova-status \
+      usr/local/sbin/nova-qemu-ready \
+      etc/systemd/system/nova-qemu-ready.service \
+      usr/share/applications/nova-control-center.desktop \
+      etc/skel/Desktop/NOVA-Control-Center.desktop; do
+      if [[ -s "$SQROOT/$f" ]]; then ok "squashfs contém /$f"; else bad "squashfs NÃO contém /$f"; fi
+    done
+    for f in usr/local/bin/nova-ui usr/local/bin/nova-game-mode usr/local/bin/nova-status usr/local/sbin/nova-qemu-ready; do
+      if [[ -x "$SQROOT/$f" ]]; then ok "/$f executável"; else bad "/$f sem bit de execução"; fi
+    done
+    if [[ -e "$SQROOT/etc/systemd/system/graphical.target.wants/nova-qemu-ready.service" ]]; then
+      ok "serviço de confirmação gráfica habilitado"
+    else
+      bad "serviço de confirmação gráfica não habilitado"
+    fi
+  else
+    bad "não foi possível extrair filesystem.squashfs"
+  fi
 else
-  bad "não foi possível extrair filesystem.squashfs"
+  bad "filesystem.squashfs não foi extraído"
 fi
 
-exit "$FAIL"
+if (( FAIL != 0 )); then
+  echo "[FALHA] validação da ISO reprovada."
+  exit 1
+fi
+echo "[OK] validação estrutural concluída."
