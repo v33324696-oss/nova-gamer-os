@@ -47,6 +47,11 @@ if [[ -z "$ISO" || ! -s "$ISO" ]]; then
   exit 2
 fi
 
+# Corrige divergência entre nomes versionados no GRUB e nomes genéricos
+# realmente fornecidos pelo live-build. Não altera kernel nem initrd.
+chmod +x scripts/repair-iso-boot-paths.sh
+./scripts/repair-iso-boot-paths.sh "$ISO" binary
+
 cp -- "$ISO" build/NOVA-GAMER-OS-amd64.iso
 (cd build && sha256sum NOVA-GAMER-OS-amd64.iso > SHA256SUMS.txt)
 SIZE="$(du -h build/NOVA-GAMER-OS-amd64.iso | cut -f1)"
