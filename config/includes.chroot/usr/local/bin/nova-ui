@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+PAGE='file:///usr/share/nova-ui/index.html'
+if command -v chromium >/dev/null 2>&1; then
+    exec chromium --app="$PAGE" --no-first-run "$@"
+elif command -v chromium-browser >/dev/null 2>&1; then
+    exec chromium-browser --app="$PAGE" --no-first-run "$@"
+elif command -v xdg-open >/dev/null 2>&1; then
+    exec xdg-open "$PAGE"
+else
+    echo 'NOVA Control Center: instale Chromium ou outro navegador.' >&2
+    exit 1
+fi

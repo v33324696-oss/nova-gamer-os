@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=NOVA Control Center
+Comment=Painel visual do NOVA GAMER OS
+Exec=/usr/local/bin/nova-ui
+Icon=preferences-desktop
+Terminal=false
+Categories=System;Game;
+StartupNotify=true

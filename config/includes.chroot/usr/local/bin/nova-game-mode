@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "NOVA Game Mode — Intel Edition"
+echo "Este perfil usa apenas interfaces de gerenciamento suportadas pelo sistema."
+echo "Não altera tensão, BIOS ou limites elétricos."
+echo
+
+if command -v powerprofilesctl >/dev/null 2>&1; then
+  if powerprofilesctl list 2>/dev/null | grep -q performance; then
+    if powerprofilesctl set performance; then
+      echo "Perfil de energia: performance"
+    else
+      echo "Não foi possível alterar o perfil. Verifique permissões e suporte do hardware."
+    fi
+  else
+    echo "O perfil performance não é oferecido por este computador."
+  fi
+else
+  echo "power-profiles-daemon não está disponível."
+fi
+
+if command -v gamemoderun >/dev/null 2>&1; then
+  echo
+  echo "GameMode está instalado. Para iniciar um jogo compatível:"
+  echo "  gamemoderun comando-do-jogo"
+fi
+
+echo
+echo "Para voltar ao perfil equilibrado, execute:"
+echo "  powerprofilesctl set balanced"

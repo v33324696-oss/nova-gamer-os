@@ -1,0 +1,10 @@
+NOVA GAMER OS — Intel Edition
+
+Hardware-alvo: Intel + gráficos integrados + 8 GB RAM.
+
+Navegador: Chromium.
+Game Mode: perfil de energia suportado e GameMode.
+Monitoramento: intel-gpu-tools, lm-sensors e thermald.
+
+MSI App Player não possui versão Linux oficial e não está incluído.
+Não há overclock de tensão/frequência neste projeto.

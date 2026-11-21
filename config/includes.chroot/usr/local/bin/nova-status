@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -u
+
+echo "========== NOVA GAMER OS — STATUS =========="
+echo
+echo "[CPU]"
+if command -v lscpu >/dev/null 2>&1; then
+  lscpu | grep -E 'Model name|Architecture|CPU\(s\)' | head -n 4
+else
+  grep -m1 'model name' /proc/cpuinfo || true
+fi
+
+echo
+echo "[MEMÓRIA]"
+free -h 2>/dev/null || true
+
+echo
+echo "[GPU INTEL]"
+if command -v lspci >/dev/null 2>&1; then
+  lspci | grep -Ei 'VGA|Display|3D' || true
+fi
+if command -v intel_gpu_top >/dev/null 2>&1; then
+  echo "intel_gpu_top está disponível (execute em um terminal para telemetria ao vivo)."
+fi
+
+echo
+echo "[TEMPERATURA]"
+if command -v sensors >/dev/null 2>&1; then
+  sensors 2>/dev/null || echo "Sensores não detectados."
+else
+  echo "lm-sensors não está disponível."
+fi
+echo
+echo "============================================"
+read -r -p "Pressione Enter para fechar..."

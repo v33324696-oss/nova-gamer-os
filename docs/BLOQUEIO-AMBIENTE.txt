@@ -1,0 +1,3 @@
+Ambiente onde a revisão foi feita: Ubuntu 24.04, 4 GB RAM, sem internet (DNS não resolve deb.debian.org nem archive.ubuntu.com).
+Ausentes: live-build, debootstrap, xorriso, squashfs-tools, qemu-system-x86_64.
+Consequência: impossível baixar pacotes Debian e compilar a ISO neste ambiente. Nenhuma ISO foi gerada.

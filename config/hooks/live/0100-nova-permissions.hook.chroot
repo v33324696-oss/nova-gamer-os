@@ -1,0 +1,9 @@
+#!/bin/sh
+# NOVA GAMER OS - garante permissões de execução dos arquivos personalizados.
+set -eu
+chmod 0755 /usr/local/bin/nova-ui /usr/local/bin/nova-game-mode /usr/local/bin/nova-status
+chmod 0644 /usr/share/nova-ui/index.html
+chmod 0755 /etc/skel/Desktop/NOVA-Control-Center.desktop
+chmod 0755 /etc/skel/.local/share/applications/nova-game-mode.desktop \
+           /etc/skel/.local/share/applications/nova-status.desktop
+chmod 0644 /usr/share/applications/nova-control-center.desktop

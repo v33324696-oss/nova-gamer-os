@@ -1,0 +1,1 @@
+Fonte da interface NOVA Control Center. O arquivo instalado na imagem fica em /usr/share/nova-ui/index.html. Edite ui/index.html e copie novamente para config/includes.chroot/usr/share/nova-ui/index.html antes de compilar a ISO.

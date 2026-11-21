@@ -1,0 +1,52 @@
+# ---- Desktop leve e sessão ----
+xfce4
+xfce4-terminal
+lightdm
+lightdm-gtk-greeter
+network-manager
+network-manager-gnome
+dbus-x11
+sudo
+polkitd
+pkexec
+locales
+
+# ---- Navegador e utilitários ----
+chromium
+file-roller
+thunar-archive-plugin
+p7zip-full
+unzip
+wget
+curl
+
+# ---- Intel: microcode, firmware e gráficos (somente o necessário) ----
+intel-microcode
+firmware-misc-nonfree
+firmware-iwlwifi
+firmware-realtek
+intel-media-va-driver
+mesa-vulkan-drivers
+libgl1-mesa-dri
+intel-gpu-tools
+
+# ---- Monitoramento e energia ----
+lm-sensors
+thermald
+power-profiles-daemon
+
+# ---- Utilitários de jogo (sem cheats/bypass) ----
+gamemode
+mangohud
+
+# ---- Áudio e mídia removível ----
+pipewire-audio
+pavucontrol
+udisks2
+gvfs
+gvfs-backends
+dosfstools
+ntfs-3g
+
+# ---- Instalador para copiar o sistema live para o disco interno ----
+debian-installer-launcher
