@@ -15,6 +15,14 @@ command -v lb >/dev/null 2>&1 || {
 }
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Arquivos editados/baixados no Windows podem ter CRLF, o que quebra hooks, scripts e units systemd.
+find scripts config -type f -exec sed -i 's/\r$//' {} +
+chmod +x scripts/*.sh config/hooks/live/*.hook.chroot 2>/dev/null || true
+for tool in file python3 xorriso unsquashfs; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "Ferramenta ausente: $tool (instale: sudo apt install file python3 xorriso squashfs-tools)"; exit 1; }
+done
+
 mkdir -p build
 exec > >(tee -a build/BUILD-LOG.txt) 2>&1
 BUILD_STARTED="$(date +%s)"

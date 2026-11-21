@@ -68,7 +68,8 @@ else
 fi
 
 LIST="$(xorriso -indev "$ISO" -find / -type f 2>/dev/null || true)"
-if grep -qi '/install/' <<<"$LIST"; then ok "arquivos do Debian Installer presentes"; else bad "arquivos do Debian Installer (/install) ausentes"; fi
+# Com "--debian-installer live" o live-build coloca o instalador em /d-i/; nos demais modos, em /install/.
+if grep -Eqi "'/(install|d-i)/" <<<"$LIST"; then ok "arquivos do Debian Installer presentes (/install ou /d-i)"; else bad "arquivos do Debian Installer (/install ou /d-i) ausentes"; fi
 
 SQ="$WORK/filesystem.squashfs"
 if [[ -s "$SQ" ]]; then
