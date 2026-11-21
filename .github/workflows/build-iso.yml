@@ -29,6 +29,7 @@ jobs:
             apt-get install -y --no-install-recommends live-build debootstrap xorriso squashfs-tools \
               syslinux syslinux-utils isolinux grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
               ca-certificates gnupg debian-archive-keyring file
+            chmod +x scripts/*.sh config/hooks/live/*.hook.chroot
             ./scripts/build-iso.sh
           '
 
