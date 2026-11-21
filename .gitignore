@@ -1,0 +1,15 @@
+# Arquivos GERADOS pelo live-build (não ignore config/ inteiro: ele contém o projeto!)
+/config/binary
+/config/bootstrap
+/config/chroot
+/config/common
+/config/source
+/.build/
+/cache/
+/chroot/
+/binary/
+/local/
+/build/
+/live-image-*
+*.iso
+*.log
