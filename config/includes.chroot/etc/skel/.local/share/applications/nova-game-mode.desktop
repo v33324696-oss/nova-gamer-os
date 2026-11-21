@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=NOVA Game Mode
+Comment=Ativa um perfil de desempenho suportado pelo sistema
+Exec=/usr/local/bin/nova-game-mode
+Icon=applications-games
+Terminal=true
+Categories=Game;System;
