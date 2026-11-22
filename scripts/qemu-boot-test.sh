@@ -71,7 +71,9 @@ run_vm() {
       -machine q35 -m 3072 -smp 2 \
       "${ACCEL_ARGS[@]}" \
       -vga std \
-      -cdrom "$ISO" -boot order=d \
+      -drive if=none,id=usbstick,format=raw,media=disk,file="$ISO" \
+      -device usb-storage,drive=usbstick,bootindex=1 \
+      -boot menu=on \
       -display none \
       -monitor "unix:$monitor,server=on,wait=off" \
       -serial "file:$serial" \
