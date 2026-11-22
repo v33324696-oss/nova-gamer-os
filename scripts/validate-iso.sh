@@ -71,6 +71,30 @@ LIST="$(xorriso -indev "$ISO" -find / -type f 2>/dev/null || true)"
 # Com "--debian-installer live" o live-build coloca o instalador em /d-i/; nos demais modos, em /install/.
 if grep -Eqi "'/(install|d-i)/" <<<"$LIST"; then ok "arquivos do Debian Installer presentes (/install ou /d-i)"; else bad "arquivos do Debian Installer (/install ou /d-i) ausentes"; fi
 
+# ---- Menus do bootloader: mostra a configuracao e confere se kernel/initrd citados existem na ISO ----
+BL="$WORK/bootloader"
+mkdir -p "$BL"
+for d in /boot/grub /isolinux /syslinux; do
+  xorriso -osirrox on -indev "$ISO" -extract "$d" "$BL$(printf '%s' "$d" | tr / _)" >/dev/null 2>&1 || true
+done
+chmod -R u+rwX "$BL" 2>/dev/null || true
+echo "---- configuracao dos menus de boot (ISO) ----"
+find "$BL" -type f \( -name '*.cfg' \) | sort | while read -r cfg; do
+  echo "## ${cfg#"$BL"/}"
+  grep -nEi '^[[:space:]]*(set[[:space:]]+(default|timeout)|timeout|default|menuentry|label|linux|kernel|initrd|append)' "$cfg" || true
+done
+echo "-----------------------------------------------"
+BOOTREFS="$(find "$BL" -type f -name '*.cfg' -exec cat {} + 2>/dev/null \
+  | grep -oE '(^|[[:space:]=])/(live|d-i|install)/[A-Za-z0-9._/+-]+' | sed -E 's/^[[:space:]=]+//' | sort -u || true)"
+if [[ -z "$BOOTREFS" ]]; then
+  bad "nenhum caminho de kernel/initrd encontrado nos menus de boot (grub.cfg/isolinux)"
+else
+  while read -r ref; do
+    [[ -n "$ref" ]] || continue
+    if grep -Fq "'$ref'" <<<"$LIST"; then ok "menu de boot referencia $ref (existe na ISO)"; else bad "menu de boot referencia $ref, que NAO existe na ISO"; fi
+  done <<<"$BOOTREFS"
+fi
+
 SQ="$WORK/filesystem.squashfs"
 if [[ -s "$SQ" ]]; then
   command -v unsquashfs >/dev/null || { bad "unsquashfs não instalado"; exit 1; }

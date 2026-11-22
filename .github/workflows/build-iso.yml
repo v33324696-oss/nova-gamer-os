@@ -69,6 +69,7 @@ jobs:
             build/VALIDATE-LOG.txt
             build/QEMU-LOG.txt
             build/qemu/*.ppm
+            build/qemu/*.png
             build/qemu/*.log
 
       - name: Resumo automático do resultado

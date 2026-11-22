@@ -20,6 +20,40 @@ else
     echo "Acelerador QEMU: TCG (software)"
 fi
 
+# Converte captura PPM (QEMU) em PNG para poder abrir no Windows/navegador.
+ppm2png() {
+    [[ -s "$1" ]] || return 0
+    python3 - "$1" "${1%.ppm}.png" <<'PY' 2>/dev/null || true
+import sys, zlib, struct
+src, dst = sys.argv[1:3]
+d = open(src, 'rb').read()
+parts, i = [], 0
+while len(parts) < 4:
+    while d[i:i+1].isspace(): i += 1
+    if d[i:i+1] == b'#':
+        while d[i:i+1] != b'\n': i += 1
+        continue
+    j = i
+    while not d[j:j+1].isspace(): j += 1
+    parts.append(d[i:j]); i = j
+i += 1
+w, h = int(parts[1]), int(parts[2])
+px = d[i:i + w * h * 3]
+raw = b''.join(b'\x00' + px[y*w*3:(y+1)*w*3] for y in range(h))
+def chunk(t, b):
+    return struct.pack('>I', len(b)) + t + b + struct.pack('>I', zlib.crc32(t + b) & 0xffffffff)
+open(dst, 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+                      + chunk(b'IDAT', zlib.compress(raw, 6)) + chunk(b'IEND', b''))
+PY
+}
+
+snap() { # snap <monitor> <arquivo.ppm>
+    [[ -S "$1" ]] && command -v socat >/dev/null 2>&1 || return 0
+    printf 'screendump %s\n' "$2" | timeout 5 socat - "UNIX-CONNECT:$1" >/dev/null 2>&1 || true
+    sleep 1
+    ppm2png "$2"
+}
+
 run_vm() {
     local name="$1"; shift
     local serial="$OUT/$name-serial.log"
@@ -59,17 +93,16 @@ run_vm() {
             printf 'sendkey ret\n' | timeout 3 socat - "UNIX-CONNECT:$monitor" >/dev/null 2>&1 || true
         fi
         # Captura intermediaria para diagnostico (menu/kernel em andamento).
-        if (( elapsed == 60 )) && [[ -S "$monitor" ]] && command -v socat >/dev/null 2>&1; then
-            printf 'screendump %s\n' "$OUT/$name-screen-60s.ppm" | timeout 5 socat - "UNIX-CONNECT:$monitor" >/dev/null 2>&1 || true
+        if (( elapsed == 0 )); then echo "[INFO] $name: enviando Enter ao menu do bootloader (se houver)"; fi
+        if (( elapsed == 30 || elapsed == 90 || elapsed == 180 )); then
+            snap "$monitor" "$OUT/$name-screen-${elapsed}s.ppm"
         fi
         sleep 2
         elapsed=$((elapsed + 2))
     done
 
     # Salva a tela do firmware/GRUB/kernel para diagnosticar falhas sem saída serial.
-    if [[ -S "$monitor" ]] && command -v socat >/dev/null 2>&1; then
-        printf 'screendump %s\n' "$screenshot" | socat - "UNIX-CONNECT:$monitor" >/dev/null 2>&1 || true
-    fi
+    snap "$monitor" "$screenshot"
 
     # Nunca deixa o teste preso esperando indefinidamente pelo QEMU.
     kill -TERM "$pid" 2>/dev/null || true
@@ -84,7 +117,7 @@ run_vm() {
 
     echo "[FALHA] $name: o LightDM não confirmou inicialização após ${elapsed}s."
     if [[ -s "$screenshot" ]]; then
-        echo "[INFO] Captura da tela salva em $screenshot"
+        echo "[INFO] Captura da tela salva em ${screenshot%.ppm}.png"
     else
         echo "[AVISO] QEMU não gerou captura de tela."
     fi

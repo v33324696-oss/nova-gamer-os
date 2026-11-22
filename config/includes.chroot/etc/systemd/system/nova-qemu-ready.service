@@ -5,6 +5,7 @@ ConditionPathExists=/dev/ttyS0
 
 [Service]
 Type=oneshot
+TimeoutStartSec=150
 ExecStart=/usr/local/sbin/nova-qemu-ready
 RemainAfterExit=yes
 
