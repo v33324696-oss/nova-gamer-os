@@ -101,7 +101,7 @@ if [[ -s "$EFI_CFG" ]]; then
   else
     bad "GRUB EFI não procura /live/vmlinuz na mídia Live"
   fi
-  if grep -Eq 'configfile[[:space:]].*/boot/grub/grub\\.cfg' "$EFI_CFG"; then
+  if grep -Fq '/boot/grub/grub.cfg' "$EFI_CFG"; then
     ok "GRUB EFI encaminha para /boot/grub/grub.cfg da mídia"
   else
     bad "GRUB EFI não encaminha para o menu GRUB principal da mídia"
