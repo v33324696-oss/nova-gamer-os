@@ -72,7 +72,8 @@ run_vm() {
       "${ACCEL_ARGS[@]}" \
       -vga std \
       -drive if=none,id=usbstick,format=raw,media=disk,file="$ISO" \
-      -device usb-storage,drive=usbstick,bootindex=1 \
+      -device qemu-xhci,id=xhci \
+      -device usb-storage,bus=xhci.0,drive=usbstick,bootindex=1 \
       -boot menu=on \
       -display none \
       -monitor "unix:$monitor,server=on,wait=off" \

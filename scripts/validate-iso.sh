@@ -75,15 +75,47 @@ if grep -Eqi "'/(install|d-i)/" <<<"$LIST"; then ok "arquivos do Debian Installe
 BL="$WORK/bootloader"
 mkdir -p "$BL"
 for d in /boot/grub /isolinux /syslinux; do
-  xorriso -osirrox on -indev "$ISO" -extract "$d" "$BL$(printf '%s' "$d" | tr / _)" >/dev/null 2>&1 || true
+  # Keep these extracted directories INSIDE $BL. The previous missing slash
+  # sent them to sibling paths, so find "$BL" never inspected the real GRUB menu.
+  dest="$BL/$(printf '%s' "$d" | tr / _)"
+  mkdir -p "$(dirname "$dest")"
+  xorriso -osirrox on -indev "$ISO" -extract "$d" "$dest" >/dev/null 2>&1 || true
 done
 # A configuração UEFI pode estar dentro da imagem FAT EFI, não no diretório ISO.
 EFIIMG="$WORK/efi.img"
 if extract_iso /boot/grub/efi.img "$EFIIMG" && [[ -s "$EFIIMG" ]]; then
   mkdir -p "$BL/efi-image"
+  # EFI FAT image contains only a small GRUB hand-off config and EFI binaries.
+  # Copying its files is diagnostic; the actual Live menu is on the ISO filesystem.
+  mdir -i "$EFIIMG" ::/boot/grub > "$BL/efi-directory.txt" 2>&1 || true
   mcopy -s -i "$EFIIMG" :: "$BL/efi-image/" >/dev/null 2>&1 || true
+else
+  bad "imagem FAT /boot/grub/efi.img ausente ou ilegível"
 fi
 chmod -R u+rwX "$BL" 2>/dev/null || true
+
+EFI_CFG="$BL/efi-image/boot/grub/grub.cfg"
+if [[ -s "$EFI_CFG" ]]; then
+  if grep -Fq -- '--file /live/vmlinuz' "$EFI_CFG"; then
+    ok "GRUB EFI procura a mídia que contém /live/vmlinuz"
+  else
+    bad "GRUB EFI não procura /live/vmlinuz na mídia Live"
+  fi
+  if grep -Eq 'configfile[[:space:]].*/boot/grub/grub\\.cfg' "$EFI_CFG"; then
+    ok "GRUB EFI encaminha para /boot/grub/grub.cfg da mídia"
+  else
+    bad "GRUB EFI não encaminha para o menu GRUB principal da mídia"
+  fi
+else
+  bad "grub.cfg de encaminhamento não foi extraído da imagem EFI"
+fi
+
+ISO_GRUB_CFG="$BL/boot_grub/grub.cfg"
+if [[ -s "$ISO_GRUB_CFG" ]]; then
+  ok "menu GRUB principal /boot/grub/grub.cfg extraído da ISO"
+else
+  bad "menu GRUB principal /boot/grub/grub.cfg ausente ou ilegível na ISO"
+fi
 echo "---- configuracao dos menus de boot (ISO + EFI) ----"
 find "$BL" -type f \( -name '*.cfg' \) | sort | while read -r cfg; do
   echo "## ${cfg#"$BL"/}"
