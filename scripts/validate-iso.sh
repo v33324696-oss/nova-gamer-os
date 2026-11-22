@@ -96,15 +96,25 @@ chmod -R u+rwX "$BL" 2>/dev/null || true
 
 EFI_CFG="$BL/efi-image/boot/grub/grub.cfg"
 if [[ -s "$EFI_CFG" ]]; then
-  if grep -Fq -- '--file /live/vmlinuz' "$EFI_CFG"; then
-    ok "GRUB EFI procura a mídia que contém /live/vmlinuz"
+  echo "---- GRUB EFI embutido (diagnóstico completo) ----"
+  sed -n '1,160p' "$EFI_CFG"
+  echo "--------------------------------------------------"
+  # live-build pode localizar a mídia por /live/vmlinuz ou por um marcador
+  # de volume/.disk/info. Não fixe a validação a uma única ordem de argumentos.
+  if grep -Eiq '^[[:space:]]*search([[:space:]]|$)' "$EFI_CFG"; then
+    ok "GRUB EFI contém comando search para localizar a mídia"
   else
-    bad "GRUB EFI não procura /live/vmlinuz na mídia Live"
+    bad "GRUB EFI não contém comando search para localizar a mídia"
   fi
-  if grep -Fq '/boot/grub/grub.cfg' "$EFI_CFG"; then
+  if grep -Eq '(^|[[:space:]])(configfile|source)[[:space:]].*/boot/grub/grub\.cfg' "$EFI_CFG"; then
     ok "GRUB EFI encaminha para /boot/grub/grub.cfg da mídia"
   else
     bad "GRUB EFI não encaminha para o menu GRUB principal da mídia"
+  fi
+  if [[ -s "$WORK/vmlinuz" && -s "$WORK/initrd.img" ]]; then
+    ok "marcadores /live/vmlinuz e /live/initrd.img existem na ISO"
+  else
+    bad "marcadores genéricos do kernel/initrd ausentes na ISO"
   fi
 else
   bad "grub.cfg de encaminhamento não foi extraído da imagem EFI"
