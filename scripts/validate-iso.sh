@@ -77,13 +77,19 @@ mkdir -p "$BL"
 for d in /boot/grub /isolinux /syslinux; do
   xorriso -osirrox on -indev "$ISO" -extract "$d" "$BL$(printf '%s' "$d" | tr / _)" >/dev/null 2>&1 || true
 done
+# A configuração UEFI pode estar dentro da imagem FAT EFI, não no diretório ISO.
+EFIIMG="$WORK/efi.img"
+if extract_iso /boot/grub/efi.img "$EFIIMG" && [[ -s "$EFIIMG" ]]; then
+  mkdir -p "$BL/efi-image"
+  mcopy -s -i "$EFIIMG" :: "$BL/efi-image/" >/dev/null 2>&1 || true
+fi
 chmod -R u+rwX "$BL" 2>/dev/null || true
-echo "---- configuracao dos menus de boot (ISO) ----"
+echo "---- configuracao dos menus de boot (ISO + EFI) ----"
 find "$BL" -type f \( -name '*.cfg' \) | sort | while read -r cfg; do
   echo "## ${cfg#"$BL"/}"
-  grep -nEi '^[[:space:]]*(set[[:space:]]+(default|timeout)|timeout|default|menuentry|label|linux|kernel|initrd|append)' "$cfg" || true
+  grep -nEi '^[[:space:]]*(set[[:space:]]+(default|timeout)|timeout|default|menuentry|label|linux|linuxefi|kernel|initrd|append)' "$cfg" || true
 done
-echo "-----------------------------------------------"
+echo "----------------------------------------------------"
 BOOTREFS="$(find "$BL" -type f -name '*.cfg' -exec cat {} + 2>/dev/null \
   | grep -oE '(^|[[:space:]=])/(live|d-i|install)/[A-Za-z0-9._/+-]+' | sed -E 's/^[[:space:]=]+//' | sort -u || true)"
 if [[ -z "$BOOTREFS" ]]; then
@@ -98,6 +104,7 @@ fi
 SQ="$WORK/filesystem.squashfs"
 if [[ -s "$SQ" ]]; then
   command -v unsquashfs >/dev/null || { bad "unsquashfs não instalado"; exit 1; }
+  command -v mcopy >/dev/null || { bad "mtools não instalado (necessário para inspecionar a partição EFI)"; exit 1; }
   SQROOT="$WORK/squashfs-root"
   mkdir -p "$SQROOT"
   if unsquashfs -d "$SQROOT" "$SQ" >/dev/null; then
