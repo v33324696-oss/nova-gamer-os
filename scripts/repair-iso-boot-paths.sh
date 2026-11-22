@@ -28,12 +28,18 @@ cleanup(){ rm -rf "$WORK"; rm -f "$TMP_ISO"; }
 trap cleanup EXIT
 
 mkdir -p "$WORK/live" "$WORK/boot/grub/fonts"
+# O EFI GRUB do live-build procura especificamente /live/vmlinuz.
+# O menu principal usa os nomes versionados; mantenha os dois pares na ISO.
+cp "$ROOT/live/vmlinuz" "$WORK/live/vmlinuz"
+cp "$ROOT/live/initrd.img" "$WORK/live/initrd.img"
 cp "$ROOT/live/vmlinuz" "$WORK/live/vmlinuz-$KERNEL_VERSION"
 cp "$ROOT/live/initrd.img" "$WORK/live/initrd.img-$KERNEL_VERSION"
 cp "$FONT" "$WORK/boot/grub/fonts/unicode.pf2"
 
 xorriso -indev "$ISO" -outdev "$TMP_ISO" \
   -boot_image any replay \
+  -map "$WORK/live/vmlinuz" "/live/vmlinuz" \
+  -map "$WORK/live/initrd.img" "/live/initrd.img" \
   -map "$WORK/live/vmlinuz-$KERNEL_VERSION" "/live/vmlinuz-$KERNEL_VERSION" \
   -map "$WORK/live/initrd.img-$KERNEL_VERSION" "/live/initrd.img-$KERNEL_VERSION" \
   -map "$WORK/boot/grub/fonts/unicode.pf2" "/boot/grub/fonts/unicode.pf2" \
@@ -42,11 +48,11 @@ xorriso -indev "$ISO" -outdev "$TMP_ISO" \
 [[ -s "$TMP_ISO" ]] || { echo "[FALHA] xorriso não criou a ISO reparada" >&2; exit 5; }
 mv -f "$TMP_ISO" "$ISO"
 
-for target in "/live/vmlinuz-$KERNEL_VERSION" "/live/initrd.img-$KERNEL_VERSION" "/boot/grub/fonts/unicode.pf2"; do
+for target in "/live/vmlinuz" "/live/initrd.img" "/live/vmlinuz-$KERNEL_VERSION" "/live/initrd.img-$KERNEL_VERSION" "/boot/grub/fonts/unicode.pf2"; do
   verify="$WORK/verify"
   rm -f "$verify"
   xorriso -osirrox on -indev "$ISO" -extract "$target" "$verify" >/dev/null 2>&1
   [[ -s "$verify" ]] || { echo "[FALHA] arquivo ausente após reparo: $target" >&2; exit 6; }
   echo "[OK] ISO contém $target ($(stat -c %s "$verify") bytes)"
 done
-echo "[OK] aliases versionados do kernel/initrd e fonte GRUB incluídos."
+echo "[OK] aliases genéricos e versionados do kernel/initrd e fonte GRUB incluídos."
