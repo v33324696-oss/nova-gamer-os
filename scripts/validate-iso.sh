@@ -77,7 +77,7 @@ mkdir -p "$BL"
 for d in /boot/grub /isolinux /syslinux; do
   # Keep these extracted directories INSIDE $BL. The previous missing slash
   # sent them to sibling paths, so find "$BL" never inspected the real GRUB menu.
-  dest="$BL/$(printf '%s' "$d" | tr / _)"
+  dest="$BL/${d#/}"
   mkdir -p "$(dirname "$dest")"
   xorriso -osirrox on -indev "$ISO" -extract "$d" "$dest" >/dev/null 2>&1 || true
 done
@@ -110,7 +110,7 @@ else
   bad "grub.cfg de encaminhamento não foi extraído da imagem EFI"
 fi
 
-ISO_GRUB_CFG="$BL/boot_grub/grub.cfg"
+ISO_GRUB_CFG="$BL/boot/grub/grub.cfg"
 if [[ -s "$ISO_GRUB_CFG" ]]; then
   ok "menu GRUB principal /boot/grub/grub.cfg extraído da ISO"
 else
