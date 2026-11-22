@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y xorriso squashfs-tools file
+          sudo apt-get install -y xorriso squashfs-tools file mtools
           chmod +x scripts/*.sh
           sudo ./scripts/validate-iso.sh build/NOVA-GAMER-OS-amd64.iso | tee build/VALIDATE-LOG.txt
 
